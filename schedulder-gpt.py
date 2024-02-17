@@ -1,166 +1,236 @@
+#Omar Alshafei
+#Hung Tran
+
+import sys
+
+# recieved from ChatGPT but revised and edited
+# FIFO Scheduling Algorithm Implementation
+def fifo_scheduler(processes, run_time):
+    print(f"{len(processes)} processes")
+    print(f"Using First-Come First-Served")
+
+    current_time = 0
+    process_currently_running = False
+
+    # recieved from ChatGPT
+    # Create a copy of the original processes list
+    original_processes_order = processes[:]
+
+    processes.sort(key=lambda x: x.arrival_time)
+    queue = []
+
+    while current_time < run_time:
+        #   Goes through the list of proccesses and compares
+        #   arrival time with the current time
+        #   This should be first to ensure since arrivals
+        #   have seem to always come first in outputs
+        for proc in processes:
+            if proc.arrival_time == current_time:
+                queue.append(proc)
+                print(f"Time {current_time} : {proc.name} arrived")
+                
+        if queue:
+            if queue[0].remaining_time == 0:
+                    print(f"Time {current_time} : {queue[0].name} finished")
+                    queue[0].completion_time = current_time
+                    queue[0].turnaround = current_time - queue[0].arrival_time
+                    queue.pop(0)
+                    process_currently_running = False
+        
+        #   Checks if a proccess is running
+        #   If not, checks if the queue is empty
+        #   If its not, grabs the first element, then
+        #   "Selects" it
+        if process_currently_running == False:
+            if queue:
+                queue[0].start_time = current_time
+                queue[0].wait = current_time - queue[0].arrival_time
+                queue[0].response = current_time - queue[0].arrival_time
+                print(f"Time {current_time} : {queue[0].name} selected (burst   {queue[0].burst_time})")
+                process_currently_running = True
+
+        #   Checks if the queue is empty
+        if queue:            
+            #   Subtract one unit of time from the first element
+            #   (This element is the one that is currently running)
+            queue[0].remaining_time -=  1
+
+        if not queue:
+            print(f"Time {current_time} : Idle")
+
+        current_time += 1
+
+    print(f"Finished at time {current_time}\n")
+
+    # recieved from ChatGPT and edited
+    for process in original_processes_order:
+        print(f"{process.name} wait Time\t{process.wait} turnaround\t{process.turnaround} response\t{process.response}")
+
+# Pre-emptive SJF Scheduling Algorithm Implementation
+def preemptive_sjf(total_time, processes):
+    current_time = 0
+    completed_processes = []
+    previous_process = None
+
+    for current_time in range(total_time):
+        eligible_processes = [p for p in processes if p.arrival_time <= current_time]
+        if not eligible_processes:
+            print(f"Time {current_time} : Idle")
+            continue
+
+        for p in processes:
+            if p.arrival_time == current_time:
+                print(f"Time {current_time} : {p.name} arrived")
+
+        shortest_process = min(eligible_processes, key=lambda p: p.burst_time)
+
+        if shortest_process.response_time == -1:
+            shortest_process.response_time = current_time - shortest_process.arrival_time
+
+        if previous_process is None or (shortest_process != previous_process and shortest_process.burst_time < previous_process.burst_time):
+            if shortest_process.response_time == -1:
+                shortest_process.response_time = current_time - shortest_process.arrival_time
+            print(f"Time {current_time} : {shortest_process.name} selected (burst {shortest_process.burst_time})")
+
+        for p in processes:
+            if p != shortest_process and p.arrival_time <= current_time:
+                p.wait_time += 1
+
+        shortest_process.burst_time -= 1
+
+        if shortest_process.burst_time <= 0:
+            completed_processes.append(shortest_process)
+            processes.remove(shortest_process)
+            shortest_process.turnaround_time = current_time + 1 - shortest_process.arrival_time
+            print(f"Time {current_time + 1} : {shortest_process.name} finished")
+            shortest_process = None
+
+        previous_process = shortest_process
+
+    print(f"Finished at time  {total_time}")
+
+    unfinished_processes = [p for p in processes if p.burst_time > 0]
+
+    if unfinished_processes:
+        print("Processes that did not finish:")
+        for p in unfinished_processes:
+            print(f"{p.name} (burst {p.burst_time})")
+
+def round_robin_scheduler(processes, run_for, quantum):
+    current_time = 0
+    ready_queue = []  # Initialize ready queue with no processes
+    completed_processes = []
+    quantum_remainder = 0
+    current_process = None
+
+    while current_time < run_for:
+        # Check for arrival_times
+        for process in processes:
+            if process.arrival_time == current_time:
+                ready_queue.append(process)
+                print(f"Time {current_time} : {process.name} arrived")
+
+        if current_process is not None:
+            if current_process.remaining_time == 0:
+                print(f"Time {current_time} : {current_process.name} finished")
+                completed_processes.append(current_process)
+                current_process.turnaround_time = current_time - current_process.arrival_time
+                current_process.wait_time = current_process.turnaround_time - current_process.burst_time
+                quantum_remainder = 0
+                current_process = None
+            elif quantum_remainder == 0:
+                ready_queue.append(current_process)
+
+        # Select process to execute
+        if ready_queue and quantum_remainder == 0:
+            quantum_remainder = quantum
+            current_process = ready_queue.pop(0)
+            if current_process.response_time == -1:
+                current_process.response_time = current_time - current_process.arrival_time
+            print(f"Time {current_time} : {current_process.name} selected (burst_time {current_process.remaining_time})")
+        elif len(ready_queue) == 0 and quantum_remainder == 0:
+            print(f"Time {current_time} : Idle")
+            current_time += 1
+            continue
+
+        current_time += 1
+        current_process.remaining_time -= 1
+        quantum_remainder -= 1
+
+    print(f"Finished at time   {current_time}\n")
+
+    # Output the completed processes with statistics
+    for process in processes:
+        if process.turnaround_time > 0:
+            print(f"{process.name} wait  {process.wait_time} turnaround  {process.turnaround_time} response  {process.response_time}")
+
+    for process in processes:
+        if process.turnaround_time == 0:
+            print(f"{process.name} did not finish")
+
+
 class Process:
     def __init__(self, name, arrival_time, burst_time):
         self.name = name
         self.arrival_time = arrival_time
         self.burst_time = burst_time
         self.remaining_time = burst_time
-        self.start_time = None
-        self.end_time = None
-        self.response_time = None
+        self.completion_time = 0
+        self.start_time = -1
+        self.wait_time = 0
+        self.response_time = -1
+        self.wait = 0
+        self.turnaround = 0
+        self.response = 0
 
-def parse_input(input_file):
-    with open(input_file, 'r') as f:
-        lines = f.readlines()
-    
-    params = {}
-    processes = []
+def read_input_file(filename):
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
 
-    for line in lines:
-        parts = line.split()
-        if parts[0] == 'processcount':
-            params['process_count'] = int(parts[1])
-        elif parts[0] == 'runfor':
-            params['run_for'] = int(parts[1])
-        elif parts[0] == 'use':
-            params['algorithm'] = parts[1]
-            if params['algorithm'] == 'rr':
-                if len(parts) < 3:
-                    print("Error: Missing quantum parameter when use is 'rr'")
-                    exit(1)
-                params['quantum'] = int(parts[2])
-        elif parts[0] == 'process':
-            name = parts[2]
-            arrival_time = int(parts[4])
-            burst_time = int(parts[6])
-            processes.append(Process(name, arrival_time, burst_time))
+        # Parse directives
+        process_count = int(lines[0].split()[1])
+        run_for = int(lines[1].split()[1])
+        use_algorithm = lines[2].split()[1]
 
-    return params, processes
-
-def scheduler_fcfs(processes, run_for):
-    timeline = []
-    current_time = 0
-
-    for process in processes:
-        if process.arrival_time > current_time:
-            timeline.append((current_time, 'Idle'))
-            current_time = process.arrival_time
-        timeline.append((current_time, process.name + ' selected (burst ' + str(process.burst_time) + ')'))
-        process.start_time = current_time
-        process.end_time = current_time + process.burst_time
-        current_time = process.end_time
-        timeline.append((current_time, process.name + ' finished'))
-    
-    if current_time < run_for:
-        timeline.append((current_time, 'Idle'))
-        current_time = run_for
-    
-    return timeline
-
-def scheduler_sjf(processes, run_for):
-    timeline = []
-    current_time = 0
-    remaining_processes = processes.copy()
-
-    while current_time < run_for and remaining_processes:
-        ready_processes = [p for p in remaining_processes if p.arrival_time <= current_time]
-        if ready_processes:
-            shortest_job = min(ready_processes, key=lambda x: x.remaining_time)
-            timeline.append((current_time, shortest_job.name + ' selected (burst ' + str(shortest_job.remaining_time) + ')'))
-            if shortest_job.start_time is None:
-                shortest_job.start_time = current_time
-                shortest_job.response_time = current_time - shortest_job.arrival_time
-            execute_time = min(shortest_job.remaining_time, run_for - current_time)
-            shortest_job.remaining_time -= execute_time
-            current_time += execute_time
-            if shortest_job.remaining_time == 0:
-                shortest_job.end_time = current_time
-                timeline.append((current_time, shortest_job.name + ' finished'))
-                remaining_processes.remove(shortest_job)
+        if use_algorithm == 'rr':
+            quantum = int(lines[3].split()[1])
+            lines = lines[4:]
         else:
-            timeline.append((current_time, 'Idle'))
-            current_time += 1
-    
-    if current_time < run_for:
-        timeline.append((current_time, 'Idle'))
-        current_time = run_for
-    
-    return timeline
+            quantum = None
+            lines = lines[3:]
 
-def scheduler_rr(processes, run_for, quantum):
-    timeline = []
-    current_time = 0
-    remaining_processes = processes.copy()
+        # Parse processes
+        processes = []
+        for line in lines:
+            if line.strip() == 'end':
+                break
 
-    while current_time < run_for and remaining_processes:
-        ready_processes = [p for p in remaining_processes if p.arrival_time <= current_time]
-        if ready_processes:
-            for process in ready_processes:
-                timeline.append((current_time, process.name + ' selected (burst ' + str(min(quantum, process.remaining_time)) + ')'))
-                if process.start_time is None:
-                    process.start_time = current_time
-                    process.response_time = current_time - process.arrival_time
-                execute_time = min(quantum, process.remaining_time, run_for - current_time)
-                process.remaining_time -= execute_time
-                current_time += execute_time
-                if process.remaining_time == 0:
-                    process.end_time = current_time
-                    timeline.append((current_time, process.name + ' finished'))
-                    remaining_processes.remove(process)
-                    break
-        else:
-            timeline.append((current_time, 'Idle'))
-            current_time += 1
-    
-    if current_time < run_for:
-        timeline.append((current_time, 'Idle'))
-        current_time = run_for
-    
-    return timeline
+            parts = line.split()
+            if parts[0] == 'process':
+                name = parts[2]
+                arrival = int(parts[4])
+                burst = int(parts[6])
+                processes.append(Process(name, arrival, burst))
 
-def calculate_metrics(processes):
-    total_turnaround_time = 0
-    total_waiting_time = 0
-    total_response_time = 0
-    finished_processes = [p for p in processes if p.end_time is not None]
+        return processes, use_algorithm, quantum, run_for
 
-    for process in finished_processes:
-        total_turnaround_time += process.end_time - process.arrival_time
-        total_waiting_time += process.start_time - process.arrival_time
-        total_response_time += process.response_time
+    except (IOError, ValueError, IndexError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
-    avg_turnaround_time = total_turnaround_time / len(finished_processes)
-    avg_waiting_time = total_waiting_time / len(finished_processes)
-    avg_response_time = total_response_time / len(finished_processes)
+def main():
+    input_filename = 'c10-rr.in'
+    processes, algorithm, quantum, runTime = read_input_file(input_filename)
 
-    return avg_turnaround_time, avg_waiting_time, avg_response_time
-
-def main(input_file):
-    params, processes = parse_input(input_file)
-
-    if params['algorithm'] == 'fcfs':
-        timeline = scheduler_fcfs(processes, params['run_for'])
-    elif params['algorithm'] == 'sjf':
-        timeline = scheduler_sjf(processes, params['run_for'])
-    elif params['algorithm'] == 'rr':
-        timeline = scheduler_rr(processes, params['run_for'], params['quantum'])
-
-    avg_turnaround_time, avg_waiting_time, avg_response_time = calculate_metrics(processes)
-
-    with open(input_file[:-3] + 'out', 'w') as f:
-        f.write(str(len(processes)) + ' processes\n')
-        f.write('Using preemptive ' + params['algorithm'].upper() + '\n')
-        if params['algorithm'] == 'rr':
-            f.write('Quantum: ' + str(params['quantum']) + '\n')
-        for time, event in timeline:
-            f.write('Time ' + str(time).rjust(4) + ' : ' + event + '\n')
-        f.write('Finished at time ' + str(params['run_for']) + '\n\n')
-        f.write('Average turnaround time: {:.2f}\n'.format(avg_turnaround_time))
-        f.write('Average waiting time: {:.2f}\n'.format(avg_waiting_time))
-        f.write('Average response time: {:.2f}\n'.format(avg_response_time))
+    if algorithm == 'fcfs':
+        fifo_scheduler(processes, runTime)
+    elif algorithm == 'sjf':
+        preemptive_sjf(runTime, processes)
+    elif algorithm == 'rr':
+        print(f"{len(processes)} processes\nUsing Round-Robin\nQuantum {quantum}")
+        round_robin_scheduler(processes, runTime, quantum)
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 2:
-        print("Usage: scheduler-gpt.py <input file>")
-        exit(1)
-    main(sys.argv[1])
+    main()
+
