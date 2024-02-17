@@ -1,187 +1,174 @@
-#Omar Alshafei
-#Hung Tran
+#   Omar Alshafei
+#   Hung Tran
+#   Marc Palacio
+#   Gavin Cruz
+#   Natalya McKay
 
 import sys
 
-# recieved from ChatGPT but revised and edited
-# FIFO Scheduling Algorithm Implementation
-def fifo_scheduler(processes, run_time):
+def fifo_scheduler(processes, runTime):
     print(f"{len(processes)} processes")
     print(f"Using First-Come First-Served")
 
-    current_time = 0
-    process_currently_running = False
+    curTime = 0
+    isProcessRunning = False
 
-    # recieved from ChatGPT
-    # Create a copy of the original processes list
-    original_processes_order = processes[:]
+    originalProcesses = processes[:]
 
-    processes.sort(key=lambda x: x.arrival_time)
+    processes.sort(key=lambda x: x.arrivalTime)
     queue = []
 
-    while current_time < run_time:
-        #   Goes through the list of proccesses and compares
-        #   arrival time with the current time
-        #   This should be first to ensure since arrivals
-        #   have seem to always come first in outputs
+    while curTime < runTime:
         for proc in processes:
-            if proc.arrival_time == current_time:
+            if proc.arrivalTime == curTime:
                 queue.append(proc)
-                print(f"Time {current_time} : {proc.name} arrived")
+                print(f"Time {curTime} : {proc.name} arrived")
                 
         if queue:
-            if queue[0].remaining_time == 0:
-                    print(f"Time {current_time} : {queue[0].name} finished")
-                    queue[0].completion_time = current_time
-                    queue[0].turnaround = current_time - queue[0].arrival_time
+            if queue[0].remainingTime == 0:
+                    print(f"Time {curTime} : {queue[0].name} finished")
+                    queue[0].completionTime = curTime
+                    queue[0].turnaround = curTime - queue[0].arrivalTime
                     queue.pop(0)
-                    process_currently_running = False
+                    isProcessRunning = False
         
-        #   Checks if a proccess is running
-        #   If not, checks if the queue is empty
-        #   If its not, grabs the first element, then
-        #   "Selects" it
-        if process_currently_running == False:
+        if isProcessRunning == False:
             if queue:
-                queue[0].start_time = current_time
-                queue[0].wait = current_time - queue[0].arrival_time
-                queue[0].response = current_time - queue[0].arrival_time
-                print(f"Time {current_time} : {queue[0].name} selected (burst   {queue[0].burst_time})")
-                process_currently_running = True
+                queue[0].startTime = curTime
+                queue[0].waitTime = curTime - queue[0].arrivalTime
+                queue[0].responseTime = curTime - queue[0].arrivalTime
+                print(f"Time {curTime} : {queue[0].name} selected (burst   {queue[0].burstTime})")
+                isProcessRunning = True
 
-        #   Checks if the queue is empty
         if queue:            
-            #   Subtract one unit of time from the first element
-            #   (This element is the one that is currently running)
-            queue[0].remaining_time -=  1
+            queue[0].remainingTime -=  1
 
         if not queue:
-            print(f"Time {current_time} : Idle")
+            print(f"Time {curTime} : Idle")
 
-        current_time += 1
+        curTime += 1
 
-    print(f"Finished at time {current_time}\n")
+    print(f"Finished at time {curTime}\n")
 
-    # recieved from ChatGPT and edited
-    for process in original_processes_order:
-        print(f"{process.name} wait Time\t{process.wait} turnaround\t{process.turnaround} response\t{process.response}")
+    for process in originalProcesses:
+        print(f"{process.name} wait Time\t{process.waitTime} turnaround\t{process.turnaround} response\t{process.responseTime}")
 
 # Pre-emptive SJF Scheduling Algorithm Implementation
-def preemptive_sjf(total_time, processes):
-    current_time = 0
-    completed_processes = []
-    previous_process = None
+def preemptive_sjf(runTime, processes):
+    finishedProcesses = []
+    prevProc = None
 
-    for current_time in range(total_time):
-        eligible_processes = [p for p in processes if p.arrival_time <= current_time]
-        if not eligible_processes:
-            print(f"Time {current_time} : Idle")
+    for curTime in range(runTime):
+        validProcs = [p for p in processes if p.arrivalTime <= curTime]
+        if not validProcs:
+            print(f"Time {curTime} : Idle")
             continue
 
-        for p in processes:
-            if p.arrival_time == current_time:
-                print(f"Time {current_time} : {p.name} arrived")
-
-        shortest_process = min(eligible_processes, key=lambda p: p.burst_time)
-
-        if shortest_process.response_time == -1:
-            shortest_process.response_time = current_time - shortest_process.arrival_time
-
-        if previous_process is None or (shortest_process != previous_process and shortest_process.burst_time < previous_process.burst_time):
-            if shortest_process.response_time == -1:
-                shortest_process.response_time = current_time - shortest_process.arrival_time
-            print(f"Time {current_time} : {shortest_process.name} selected (burst {shortest_process.burst_time})")
-
-        for p in processes:
-            if p != shortest_process and p.arrival_time <= current_time:
-                p.wait_time += 1
-
-        shortest_process.burst_time -= 1
-
-        if shortest_process.burst_time <= 0:
-            completed_processes.append(shortest_process)
-            processes.remove(shortest_process)
-            shortest_process.turnaround_time = current_time + 1 - shortest_process.arrival_time
-            print(f"Time {current_time + 1} : {shortest_process.name} finished")
-            shortest_process = None
-
-        previous_process = shortest_process
-
-    print(f"Finished at time  {total_time}")
-
-    unfinished_processes = [p for p in processes if p.burst_time > 0]
-
-    if unfinished_processes:
-        print("Processes that did not finish:")
-        for p in unfinished_processes:
-            print(f"{p.name} (burst {p.burst_time})")
-
-def round_robin_scheduler(processes, run_for, quantum):
-    current_time = 0
-    ready_queue = []  # Initialize ready queue with no processes
-    completed_processes = []
-    quantum_remainder = 0
-    current_process = None
-
-    while current_time < run_for:
-        # Check for arrival_times
         for process in processes:
-            if process.arrival_time == current_time:
-                ready_queue.append(process)
-                print(f"Time {current_time} : {process.name} arrived")
+            if process.arrivalTime == curTime:
+                print(f"Time {curTime} : {process.name} arrived")
 
-        if current_process is not None:
-            if current_process.remaining_time == 0:
-                print(f"Time {current_time} : {current_process.name} finished")
-                completed_processes.append(current_process)
-                current_process.turnaround_time = current_time - current_process.arrival_time
-                current_process.wait_time = current_process.turnaround_time - current_process.burst_time
-                quantum_remainder = 0
-                current_process = None
-            elif quantum_remainder == 0:
-                ready_queue.append(current_process)
+        # ChatGPT; edited
+        shortestProcess = min(validProcs, key=lambda p: p.burstTime)
 
-        # Select process to execute
-        if ready_queue and quantum_remainder == 0:
-            quantum_remainder = quantum
-            current_process = ready_queue.pop(0)
-            if current_process.response_time == -1:
-                current_process.response_time = current_time - current_process.arrival_time
-            print(f"Time {current_time} : {current_process.name} selected (burst_time {current_process.remaining_time})")
-        elif len(ready_queue) == 0 and quantum_remainder == 0:
-            print(f"Time {current_time} : Idle")
-            current_time += 1
+        if shortestProcess.responseTime == -1:
+            shortestProcess.responseTime = curTime - shortestProcess.arrivalTime
+
+        if prevProc is None or (shortestProcess != prevProc and shortestProcess.burstTime < prevProc.burstTime):
+            if shortestProcess.responseTime == -1:
+                shortestProcess.responseTime = curTime - shortestProcess.arrivalTime
+            print(f"Time {curTime} : {shortestProcess.name} selected (burst {shortestProcess.burstTime})")
+
+        for process in processes:
+            if process != shortestProcess and process.arrivalTime <= curTime:
+                process.waitTime += 1
+
+        shortestProcess.burstTime -= 1
+
+        if shortestProcess.burstTime <= 0:
+            finishedProcesses.append(shortestProcess)
+            processes.remove(shortestProcess)
+            shortestProcess.turnaroundTime = curTime + 1 - shortestProcess.arrivalTime
+            print(f"Time {curTime + 1} : {shortestProcess.name} finished")
+            shortestProcess = None
+
+        prevProc = shortestProcess
+
+    print(f"Finished at time {runTime}\n")
+
+    finishedProcesses.sort(key=lambda x : x.name)
+    for process in finishedProcesses:
+        print(f"{process.name} wait Time\t{process.waitTime} turnaround\t{process.turnaroundTime} response\t{process.responseTime}")
+
+# function which implements the round-robin CPU scheduling algorithm
+def round_robin_scheduler(processes, runTime, quantum):
+    # initialize an empty queue and list to hold finished processes
+    queue = []
+    finishedProcesses = []
+    # initialize quantum remainder, current processes, and current time
+    quantumRemainder = 0
+    curProcesses = None
+    curTime = 0
+
+    # loop until the total runtime is reached
+    while runTime > curTime:
+        # check for processes arriving at current time and add them to the queue
+        for process in processes:
+            if process.arrivalTime == curTime:
+                queue.append(process)
+                print(f"Time {curTime} : {process.name} arrived")
+
+        # given from chatgpt and refactored and edited
+        if curProcesses is not None:
+            if curProcesses.remainingTime == 0:
+                print(f"Time {curTime} : {curProcesses.name} finished")
+                finishedProcesses.append(curProcesses)
+                curProcesses.turnaround = curTime - curProcesses.arrivalTime
+                curProcesses.waitTime = curProcesses.turnaround - curProcesses.burstTime
+                quantumRemainder = 0
+                curProcesses = None
+            elif quantumRemainder == 0:
+                queue.append(curProcesses)
+
+
+        # given from chatgpt and refactored and edited
+        if queue and quantumRemainder == 0:
+            quantumRemainder = quantum
+            curProcesses = queue.pop(0)
+            if curProcesses.responseTime == -1:
+                curProcesses.responseTime = curTime - curProcesses.arrivalTime
+            print(f"Time {curTime} : {curProcesses.name} selected (burst {curProcesses.remainingTime})")
+        # handle idle time if no processes in queue
+        elif len(queue) == 0 and quantumRemainder == 0:
+            print(f"Time {curTime} : Idle")
+            curTime += 1
             continue
 
-        current_time += 1
-        current_process.remaining_time -= 1
-        quantum_remainder -= 1
+        # given from chatgpt
+        curProcesses.remainingTime -= 1
+        curTime += 1
+        quantumRemainder -= 1
 
-    print(f"Finished at time   {current_time}\n")
+    # print finished time and process details
+    print(f"Finished at time   {curTime}\n")
 
-    # Output the completed processes with statistics
-    for process in processes:
-        if process.turnaround_time > 0:
-            print(f"{process.name} wait  {process.wait_time} turnaround  {process.turnaround_time} response  {process.response_time}")
+    finishedProcesses.sort(key=lambda x : x.name)
+    for process in finishedProcesses:
+        print(f"{process.name} wait\t{process.waitTime} turnaround\t{process.turnaround} response\t{process.responseTime}")
 
-    for process in processes:
-        if process.turnaround_time == 0:
-            print(f"{process.name} did not finish")
-
-
+            
 class Process:
-    def __init__(self, name, arrival_time, burst_time):
+    def __init__(self, name, arrivalTime, burstTime):
         self.name = name
-        self.arrival_time = arrival_time
-        self.burst_time = burst_time
-        self.remaining_time = burst_time
-        self.completion_time = 0
-        self.start_time = -1
-        self.wait_time = 0
-        self.response_time = -1
-        self.wait = 0
+        self.arrivalTime = arrivalTime
+        self.burstTime = burstTime
+        self.remainingTime = burstTime
+        self.completionTime = 0
+        self.startTime = -1
+        self.waitTime = 0
+        self.responseTime = -1
         self.turnaround = 0
-        self.response = 0
+
 
 def read_input_file(filename):
     try:
@@ -213,6 +200,19 @@ def read_input_file(filename):
                 burst = int(parts[6])
                 processes.append(Process(name, arrival, burst))
 
+        if not process_count: 
+            print("Error: Missing parameter processcount")
+            exit(1)
+        if not run_for:
+            print("Error: Missing parameter runfor")
+            exit(1)
+        if not use_algorithm:
+            print("Error: Missing parameter use")
+            exit(1)
+        if use_algorithm == 'rr' and not quantum:
+            print("Error: Missing quantum parameter when use is 'rr'")
+            exit(1)
+
         return processes, use_algorithm, quantum, run_for
 
     except (IOError, ValueError, IndexError) as e:
@@ -220,7 +220,7 @@ def read_input_file(filename):
         sys.exit(1)
 
 def main():
-    input_filename = 'c10-rr.in'
+    input_filename = 'c10-fcfs.in'
     processes, algorithm, quantum, runTime = read_input_file(input_filename)
 
     if algorithm == 'fcfs':
@@ -228,9 +228,10 @@ def main():
     elif algorithm == 'sjf':
         preemptive_sjf(runTime, processes)
     elif algorithm == 'rr':
-        print(f"{len(processes)} processes\nUsing Round-Robin\nQuantum {quantum}")
+        print(f"{len(processes)} processes\nUsing Round-Robin\nQuantum {quantum}\n")
         round_robin_scheduler(processes, runTime, quantum)
+    else:
+        print(f"Error: Invalid algorithm - {algorithm}") ## human added
 
 if __name__ == "__main__":
     main()
-
